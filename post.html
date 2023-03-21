@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"/>
+    <script src="/news/post.js"/>
+    <meta charset="UTF-8">
+    <title>POST form</title>
+</head>
+<body>
+    <form action="/news" method="post">
+
+        <label for="news_text">Add News:</label>
+        <br>
+        <textarea id="news_text" name="text" rows="12" cols="50"></textarea>
+        <br>
+        <input id="submit" type="submit" />
+    </form>
+    <hr>
+    <p>Response:</p>
+    <div id="response" style="width:20em;height:15em;overflow:auto;border:1px solid black"></div>
+
+</body>
+</html>

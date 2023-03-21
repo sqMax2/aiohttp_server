@@ -1,10 +1,12 @@
+import json
 import os
 
 from aiohttp import web
 
 
 WS_FILE = "websocket.html"
-
+POST_FILE = "post.html"
+POST_JS_FILE = "post.js"
 
 routes = web.RouteTableDef()
 
@@ -24,8 +26,8 @@ async def wshandler(request: web.Request):
 
     try:
         print("Someone joined.")
-        for ws in request.app["sockets"]:
-            await ws.send_str("Someone joined")
+        # for ws in request.app["sockets"]:
+        #     await ws.send_str("Someone joined")
         request.app["sockets"].append(resp)
 
         async for msg in resp:
@@ -46,14 +48,23 @@ async def wshandler(request: web.Request):
 
 @routes.post('/news')
 async def handle_news_post(request):
-    print(request.method)
-    print(request.path)
+    data = await request.json()
+    msg = {'news': data['data']}
+    for ws in request.app["sockets"]:
+        await ws.send_str(data['data'])
+    return web.json_response(msg)
 
 
 @routes.get('/news')
 async def handle_news_get(request):
-    print(request.method)
-    print(request.path)
+    with open(POST_FILE, "rb") as fp:
+        return web.Response(body=fp.read(), content_type="text/html")
+
+
+@routes.get('/news/post.js')
+async def handle_news_js_get(request):
+    # with open(POST_FILE, "rb") as fp:
+    return web.FileResponse(POST_JS_FILE)
 
 
 async def on_shutdown(app: web.Application):
@@ -64,7 +75,7 @@ async def on_shutdown(app: web.Application):
 def init():
     app = web.Application()
     app["sockets"] = []
-    app.router.add_routes(routes)  #add_get("/", wshandler)
+    app.router.add_routes(routes)
     app.on_shutdown.append(on_shutdown)
     return app
 

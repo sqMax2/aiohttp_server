@@ -1,38 +1,42 @@
 <!DOCTYPE html>
 <meta charset="utf-8" />
-<html>
+<html lang="en">
 <head>
+  <title>Latest News</title>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js">
 </script>
-  <script language="javascript" type="text/javascript">
+  <script type="text/javascript">
     $(function() {
-      var conn = null;
+      let conn = null;
       function log(msg) {
-        var control = $('#log');
-        control.html(control.html() + msg + '<br/>');
+        let control = $('#log');
+        control.html(control.html() + msg.replace(/(\r\n|\n|\r)/gm,"<br>") + '<br/>');
         control.scrollTop(control.scrollTop() + 1000);
       }
       function connect() {
         disconnect(); // разрываем соединение если функция вызвана по-ошибке
-        var wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host;
+        let wsUri = (window.location.protocol==='https:'&&'wss://'||'ws://')+window.location.host;
         conn = new WebSocket(wsUri); //открываем соединение
-        log('Connecting...');
+        log('<span style="color:yellowgreen">Connecting...</span>');
         conn.onopen = function() {
-          log('Connected.');
+          log('<span style="color:forestgreen">Connected.</span>');
           update_ui();
         };
         conn.onmessage = function(e) {
-          log('Received: ' + e.data);
+          let date = new Date()
+          console.log(e.data)
+          log('<span style="color:royalblue">' + date.toLocaleString() + ': </span>' + e.data);
         };
+
         conn.onclose = function() {
-          log('Disconnected.');
+          log('<span style="color:red">Disconnected.</span>');
           conn = null;
           update_ui();
         };
       }
       function disconnect() {
         if (conn != null) {
-          log('Disconnecting...');
+          log('<span style="color:indianred">Disconnecting...</span>');
           conn.close();
           conn = null;
           update_ui();
@@ -57,10 +61,10 @@
         return false;
       });
       $('#send').click(function() {
-        var text = $('#text').val();
+        let text = $('#text').val();
         log('Sending: ' + text);
         conn.send(text);
-        $('#text').val('').focus();
+        text.val('').focus();
         return false;
       });
       $('#text').keyup(function(e) {
@@ -73,17 +77,18 @@
 </script>
 </head>
 <body>
-<h3>Chat!</h3>
+<div class="nav" style="font-size: 8pt"><a href="/news" target="_blank">POST form</a></div>
+<h3>Latest News</h3>
 <div>
   <button id="connect">Connect</button>&nbsp;|&nbsp;Status:
   <span id="status">disconnected</span>
 </div>
 <div id="log"
-     style="width:20em;height:15em;overflow:auto;border:1px solid black">
+     style="width:30em;height:50em;overflow:auto;border:1px solid black">
 </div>
 <form id="chatform" onsubmit="return false;">
-  <input id="text" type="text" />
-  <input id="send" type="button" value="Send" />
+  <input id="text" type="text" style="display:none"/>
+  <input id="send" type="button" value="Send" style="display:none"/>
 </form>
 </body>
 </html>
