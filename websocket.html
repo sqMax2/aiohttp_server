@@ -3,54 +3,115 @@
 <html lang="en">
 <head>
   <title>Latest News</title>
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js">
-</script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
   <script type="text/javascript">
     $(function() {
+      let connection_confirmed = false;
+      let reconnect = false;
       let conn = null;
+
+      // Main output
       function log(msg) {
         let control = $('#log');
         control.html(control.html() + msg.replace(/(\r\n|\n|\r)/gm,"<br>") + '<br/>');
         control.scrollTop(control.scrollTop() + 1000);
       }
-      function connect() {
-        disconnect(); // разрываем соединение если функция вызвана по-ошибке
+
+      // WS connection
+      async function connect() {
+        await disconnect();
         let wsUri = (window.location.protocol==='https:'&&'wss://'||'ws://')+window.location.host;
-        conn = new WebSocket(wsUri); //открываем соединение
         log('<span style="color:yellowgreen">Connecting...</span>');
+        conn = await new WebSocket(wsUri);
+        reconnect = false;
         conn.onopen = function() {
+          connection_confirmed = true;
           log('<span style="color:forestgreen">Connected.</span>');
           update_ui();
+          // Starts manual heartbeat
+          ping();
         };
+
+        // Tries to catch heartbeat response and prints news messages into output field
         conn.onmessage = function(e) {
-          let date = new Date()
-          console.log(e.data)
-          log('<span style="color:royalblue">' + date.toLocaleString() + ': </span>' + e.data);
+          try {
+            let data = JSON.parse(e.data);
+            connection_confirmed = true;
+            update_ui();
+            console.log(data.type);
+          }
+          catch {
+            let date = new Date()
+            log('<span style="color:royalblue">' + date.toLocaleString() + ': </span>' + e.data);
+          }
         };
+
+        // Heartbit
+        async function ping() {
+          clearTimeout(timeoutId);
+          // If previous heartbit message didn't receive response it will try to reconnect WS
+          if (!connection_confirmed) {
+            console.log('Try reconnect');
+            await disconnect();
+            reconnect = true;
+          } else {
+            try {
+              console.log("PING");
+              const msg = {
+                type: "STATE",
+                text: 'Client OK'
+              }
+              conn.send(JSON.stringify(msg));
+              connection_confirmed = false;
+              update_ui();
+              // 10s heartbit interval
+              var timeoutId = setTimeout(() => {
+                ping();
+              }, 10000);
+            }
+            catch (err) {
+              const error = new Error(`Error on WS ping: ${err.message}`);
+              console.log("Error: ", error);
+            }
+          }
+        }
 
         conn.onclose = function() {
           log('<span style="color:red">Disconnected.</span>');
           conn = null;
           update_ui();
+          if (reconnect) {
+            connect();
+          }
         };
       }
-      function disconnect() {
+
+      async function disconnect() {
         if (conn != null) {
           log('<span style="color:indianred">Disconnecting...</span>');
-          conn.close();
+          await conn.close();
+          connection_confirmed = false;
           conn = null;
           update_ui();
         }
       }
+
       function update_ui() {
+        // Colors status text if heartbit response is missing
+        if (connection_confirmed) {
+          $('#status').attr({style: 'color: black'});
+        } else {
+          $('#status').attr({style: 'color: orange'});
+        }
         if (conn == null) {
+          $('#status').attr({style: 'color: black'});
           $('#status').text('disconnected');
           $('#connect').html('Connect');
         } else {
-          $('#status').text('connected (' + conn.protocol + ')');
+          $('#status').text('connected');
           $('#connect').html('Disconnect');
         }
-      }
+      };
       $('#connect').click(function() {
         if (conn == null) {
           connect();
@@ -60,6 +121,7 @@
         update_ui();
         return false;
       });
+      // Additional hidden elements for sending messages via WS
       $('#send').click(function() {
         let text = $('#text').val();
         log('Sending: ' + text);
@@ -76,19 +138,19 @@
     });
 </script>
 </head>
-<body>
-<div class="nav" style="font-size: 8pt"><a href="/news" target="_blank">POST form</a></div>
-<h3>Latest News</h3>
-<div>
-  <button id="connect">Connect</button>&nbsp;|&nbsp;Status:
-  <span id="status">disconnected</span>
-</div>
-<div id="log"
-     style="width:30em;height:50em;overflow:auto;border:1px solid black">
-</div>
-<form id="chatform" onsubmit="return false;">
-  <input id="text" type="text" style="display:none"/>
-  <input id="send" type="button" value="Send" style="display:none"/>
-</form>
-</body>
+  <body>
+    <div class="nav" style="font-size: 8pt"><a href="/news" target="_blank">POST form</a></div>
+    <h3>Latest News</h3>
+    <div>
+      <button id="connect">Connect</button>&nbsp;|&nbsp;Status:
+      <span id="status">disconnected</span>
+    </div>
+    <div id="log"
+         style="width:30em;height:50em;overflow:auto;border:1px solid black">
+    </div>
+    <form id="chatform" onsubmit="return false;">
+      <input id="text" type="text" style="display:none"/>
+      <input id="send" type="button" value="Send" style="display:none"/>
+    </form>
+  </body>
 </html>

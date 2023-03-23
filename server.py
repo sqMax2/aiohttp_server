@@ -13,7 +13,7 @@ routes = web.RouteTableDef()
 
 @routes.get('')
 async def wshandler(request: web.Request):
-    resp = web.WebSocketResponse()
+    resp = web.WebSocketResponse(autoping=True, heartbeat=5)
     available = resp.can_prepare(request)
     print(request.path)
     if not available:
@@ -26,15 +26,13 @@ async def wshandler(request: web.Request):
 
     try:
         print("Someone joined.")
-        # for ws in request.app["sockets"]:
-        #     await ws.send_str("Someone joined")
         request.app["sockets"].append(resp)
 
         async for msg in resp:
             if msg.type == web.WSMsgType.TEXT:
-                for ws in request.app["sockets"]:
-                    if ws is not resp:
-                        await ws.send_str(msg.data)
+                if json.loads(msg.data)['type'] == "STATE":
+                    print(json.loads(msg.data)['type'])
+                    await resp.send_str(json.dumps({"type": "STATE", "text": "Server OK"}))
             else:
                 return resp
         return resp
@@ -42,8 +40,6 @@ async def wshandler(request: web.Request):
     finally:
         request.app["sockets"].remove(resp)
         print("Someone disconnected.")
-        for ws in request.app["sockets"]:
-            await ws.send_str("Someone disconnected.")
 
 
 @routes.post('/news')
@@ -63,7 +59,6 @@ async def handle_news_get(request):
 
 @routes.get('/news/post.js')
 async def handle_news_js_get(request):
-    # with open(POST_FILE, "rb") as fp:
     return web.FileResponse(POST_JS_FILE)
 
 
